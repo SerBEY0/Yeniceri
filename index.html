@@ -1,0 +1,3045 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>At Turu (Knight's Tour) — İnteraktif Çizge Teorisi Laboratuvarı</title>
+  <meta name="description" content="At Turu (Knight's Tour) problemini dinamik tahta boyutları (8x8, 5x5, 8x5, MxN), Hamilton Yolu, Bipartite Çizgeler, Seviyeli Zorluk Sistemi ve Schwenk Teoremi ile öğreten ileri düzey SPA Çizge Teorisi laboratuvarı.">
+  
+  <!-- Fontlar: Outfit & Fira Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-deep: #060911;
+      --bg-surface: #0e1424;
+      --bg-card: rgba(18, 26, 44, 0.75);
+      --bg-card-border: rgba(99, 102, 241, 0.15);
+      
+      --board-light: #2c364c;
+      --board-dark: #161e31;
+      --board-faded-light: rgba(44, 54, 76, 0.35);
+      --board-faded-dark: rgba(22, 30, 49, 0.35);
+      
+      --color-node-visited: #3b82f6;
+      --color-node-current: #6366f1;
+      --color-node-target: #10b981;
+      --color-warnsdorff: #f59e0b;
+      --color-critical: #ef4444;
+      --color-isolated: #991b1b;
+
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      
+      --accent-cyan: #06b6d4;
+      --accent-indigo: #6366f1;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-purple: #a855f7;
+
+      --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'Fira Code', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: radial-gradient(circle at 10% 20%, #111a33 0%, var(--bg-deep) 70%);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* GİRİŞ EKRANI (LAUNCHER / SPLASH SCREEN OVERLAY) */
+    .launcher-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 50% 30%, #172554 0%, #030712 85%);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      backdrop-filter: blur(16px);
+      transition: opacity 0.4s ease, visibility 0.4s ease, transform 0.4s ease;
+      overflow-y: auto;
+    }
+
+    .launcher-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(1.03);
+      pointer-events: none;
+    }
+
+    .launcher-card {
+      background: rgba(15, 23, 42, 0.94);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: 24px;
+      max-width: 760px;
+      width: 100%;
+      padding: 2.2rem;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(79, 70, 229, 0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 1.35rem;
+      animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      margin: auto;
+    }
+
+    @keyframes modalPop {
+      0% { transform: scale(0.92); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .launcher-header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .launcher-icon {
+      width: 58px;
+      height: 58px;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.45);
+      margin-bottom: 0.2rem;
+    }
+
+    .launcher-icon svg {
+      width: 32px;
+      height: 32px;
+      fill: #ffffff;
+    }
+
+    .launcher-header h2 {
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, #ffffff, #93c5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .launcher-header p {
+      font-size: 0.86rem;
+      color: var(--text-secondary);
+      max-width: 540px;
+      line-height: 1.45;
+    }
+
+    .launcher-section-title {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-cyan);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    /* Tahta Seçim Kartları Grid (8x8, 5x5, 8x5, MxN) */
+    .selection-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 650px) {
+      .selection-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .select-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 0.85rem 0.65rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 0.35rem;
+      position: relative;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .select-card:hover:not(.active) {
+      background: rgba(51, 65, 85, 0.6);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .select-card.active {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: var(--accent-indigo);
+      border-width: 2px;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.45);
+      transform: translateY(-2px);
+    }
+
+    .select-card .card-val {
+      font-size: 1.25rem;
+      font-family: var(--font-mono);
+      font-weight: 800;
+      color: #f8fafc;
+    }
+
+    .select-card.active .card-val {
+      color: #93c5fd;
+    }
+
+    .select-card .card-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    /* Tahta Geometri Sekmeleri (Dikdörtgen & L-Şekli) */
+    .geom-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .geom-tab {
+      background: rgba(30, 41, 59, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 0.85rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+    }
+
+    .geom-tab:hover {
+      background: rgba(51, 65, 85, 0.65);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .geom-tab.active {
+      background: rgba(99, 102, 241, 0.22);
+      border-color: var(--accent-indigo);
+      border-width: 2px;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
+    }
+
+    .geom-tab .geom-icon {
+      font-size: 1.5rem;
+    }
+
+    .geom-tab .geom-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .geom-tab.active .geom-title {
+      color: #93c5fd;
+    }
+
+    .geom-tab .geom-sub {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    /* L-Şeklinde Tahtada Boşluk Hücresi */
+    .square.void-cell {
+      visibility: hidden !important;
+      pointer-events: none !important;
+      border: none !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    /* MxN Özel Boyut Giriş Çekmecesi */
+    .custom-dim-drawer {
+      display: none;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 14px;
+      padding: 0.85rem 1.15rem;
+      margin-top: 0.65rem;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .custom-dim-drawer.active {
+      display: flex;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .dim-inputs-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-family: var(--font-mono);
+    }
+
+    .dim-control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .dim-input {
+      width: 56px;
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #38bdf8;
+      font-family: var(--font-mono);
+      font-size: 1.05rem;
+      font-weight: 700;
+      padding: 0.35rem 0.5rem;
+      border-radius: 8px;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .dim-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+    }
+
+    /* Zorluk Seçimi Kartları */
+    .diff-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 600px) {
+      .diff-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .diff-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 0.95rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      position: relative;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .diff-card:hover:not(.active) {
+      background: rgba(51, 65, 85, 0.6);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .diff-card.active {
+      border-width: 2px;
+      transform: translateY(-2px);
+    }
+
+    .diff-card.active.theme-beginner {
+      background: rgba(16, 185, 129, 0.16);
+      border-color: var(--accent-emerald);
+      box-shadow: 0 0 22px rgba(16, 185, 129, 0.35);
+    }
+    .diff-card.active.theme-beginner .diff-title { color: #6ee7b7; }
+
+    .diff-card.active.theme-medium {
+      background: rgba(245, 158, 11, 0.16);
+      border-color: var(--accent-amber);
+      box-shadow: 0 0 22px rgba(245, 158, 11, 0.35);
+    }
+    .diff-card.active.theme-medium .diff-title { color: #fde68a; }
+
+    .diff-card.active.theme-hard {
+      background: rgba(239, 68, 68, 0.16);
+      border-color: var(--accent-rose);
+      box-shadow: 0 0 22px rgba(239, 68, 68, 0.35);
+    }
+    .diff-card.active.theme-hard .diff-title { color: #fda4af; }
+
+    .diff-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .diff-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #ffffff;
+    }
+
+    .diff-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .diff-features {
+      list-style: none;
+      font-size: 0.73rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .diff-features li {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .btn-launch {
+      background: linear-gradient(135deg, var(--accent-indigo), #3b82f6);
+      color: #ffffff;
+      font-size: 1.05rem;
+      font-weight: 700;
+      padding: 0.9rem;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.45);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-launch:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(99, 102, 241, 0.65);
+    }
+
+    /* Üst Navigasyon & Laboratuvar Başlığı */
+    header {
+      background: rgba(14, 20, 36, 0.85);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--bg-card-border);
+      padding: 0.75rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #4f46e5, #06b6d4);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(79, 70, 229, 0.4);
+    }
+
+    .brand-logo svg {
+      width: 26px;
+      height: 26px;
+      fill: #ffffff;
+    }
+
+    .brand-meta h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, #ffffff, #93c5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-meta span {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .header-ctrls {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+      outline: none;
+    }
+
+    .btn-indigo {
+      background: linear-gradient(135deg, var(--accent-indigo), #4338ca);
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35);
+    }
+    .btn-indigo:hover:not(:disabled) {
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.55);
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+    }
+    .btn-ghost:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* Ana İki Panelli Düzen (Split-Screen) */
+    .workbench {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(490px, 1.05fr) minmax(520px, 1.35fr);
+      gap: 1.5rem;
+      padding: 1.25rem 2rem;
+      max-width: 1800px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 1150px) {
+      .workbench {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+      }
+      header {
+        padding: 0.75rem 1rem;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+    }
+
+    /* SOL PANEL: OYUN ALANI */
+    .game-zone {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .board-pod {
+      background: var(--bg-surface);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 18px;
+      padding: 1.35rem;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
+      width: 100%;
+      max-width: 620px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .pod-top {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.85rem;
+      padding-bottom: 0.65rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      font-size: 0.85rem;
+      gap: 0.5rem;
+    }
+
+    /* TAHTA BÜYÜTME (EXPANDED / THEATER MODU) */
+    .board-pod.expanded {
+      position: fixed;
+      inset: 1.5rem;
+      max-width: none;
+      width: auto;
+      height: calc(100vh - 3rem);
+      z-index: 450;
+      background: rgba(11, 17, 33, 0.97);
+      backdrop-filter: blur(22px);
+      box-shadow: 0 0 70px rgba(0, 0, 0, 0.95), 0 0 45px rgba(99, 102, 241, 0.3);
+      border: 1px solid var(--accent-indigo);
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem 2rem;
+      overflow-y: auto;
+      animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .board-pod.expanded .board-container {
+      max-width: min(72vh, 820px);
+      width: 100%;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9), inset 0 0 0 2px rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-expand-board {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #93c5fd;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.78rem;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .btn-expand-board:hover {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: var(--accent-indigo);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .bipartite-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .bipartite-white {
+      color: #e2e8f0;
+      border-color: rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .bipartite-black {
+      color: #94a3b8;
+      border-color: rgba(148, 163, 184, 0.3);
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    /* Dinamik MxN Tahta Kapsayıcısı */
+    .board-container {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      border-radius: 14px;
+      overflow: hidden;
+      user-select: none;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+      transition: all 0.5s ease;
+    }
+
+    .chessboard {
+      display: grid;
+      width: 100%;
+      height: 100%;
+    }
+
+    .svg-edge-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .edge-trail {
+      fill: none;
+      stroke: var(--accent-cyan);
+      stroke-width: 3.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.75));
+    }
+
+    .edge-dot {
+      fill: #ffffff;
+      stroke: var(--accent-indigo);
+      stroke-width: 2.5;
+    }
+
+    .edge-head-pulse {
+      fill: var(--accent-amber);
+      filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.9));
+      animation: pulseHead 1.2s infinite;
+    }
+
+    @keyframes pulseHead {
+      0%, 100% { r: 6.5; opacity: 1; }
+      50% { r: 9; opacity: 0.7; }
+    }
+
+    .square {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-weight: 700;
+      transition: background-color 0.3s ease, opacity 0.4s ease, transform 0.15s ease;
+      min-height: 44px;
+    }
+
+    .square.light { background-color: var(--board-light); }
+    .square.dark { background-color: var(--board-dark); }
+
+    .board-container.graph-mode .square.light { background-color: var(--board-faded-light); }
+    .board-container.graph-mode .square.dark { background-color: var(--board-faded-dark); }
+
+    .sq-coord-r, .sq-coord-c {
+      position: absolute;
+      font-size: 0.65rem;
+      font-family: var(--font-mono);
+      color: rgba(255, 255, 255, 0.25);
+      pointer-events: none;
+      font-weight: 600;
+    }
+    .sq-coord-r { top: 2px; left: 3px; }
+    .sq-coord-c { bottom: 2px; right: 3px; }
+
+    .eff-degree-label {
+      position: absolute;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: rgba(255, 255, 255, 0.45);
+      pointer-events: none;
+      transition: all 0.2s ease;
+      z-index: 4;
+    }
+
+    .square.visited { cursor: not-allowed; }
+
+    .square.visited .graph-node {
+      width: 68%;
+      height: 68%;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #ffffff;
+      background: radial-gradient(circle at 35% 35%, #60a5fa, #1d4ed8);
+      box-shadow: 0 0 14px rgba(59, 130, 246, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+      z-index: 12;
+      animation: popNode 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .square.visited.is-white-subset .graph-node {
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 16px rgba(255, 255, 255, 0.7);
+    }
+    .square.visited.is-black-subset .graph-node {
+      border: 2px solid #334155;
+      background: radial-gradient(circle at 35% 35%, #38bdf8, #0369a1);
+    }
+
+    .square.current-node .graph-node {
+      background: radial-gradient(circle at 30% 30%, #818cf8, #4338ca) !important;
+      border: 2px solid #a5b4fc !important;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.9) !important;
+      animation: currentPulse 1.8s infinite alternate;
+    }
+
+    .knight-svg {
+      width: 75%;
+      height: 75%;
+      fill: #ffffff;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+    }
+
+    @keyframes popNode {
+      0% { transform: scale(0.3); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes currentPulse {
+      0% { box-shadow: 0 0 12px rgba(99, 102, 241, 0.6); }
+      100% { box-shadow: 0 0 25px rgba(99, 102, 241, 1); }
+    }
+
+    .square.valid-target {
+      cursor: pointer;
+      background-color: rgba(16, 185, 129, 0.16) !important;
+    }
+
+    .square.valid-target::before {
+      content: '';
+      position: absolute;
+      width: 44%;
+      height: 44%;
+      border-radius: 50%;
+      background: rgba(16, 185, 129, 0.65);
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.85);
+      transition: all 0.2s ease;
+      z-index: 5;
+    }
+
+    .square.valid-target:hover::before {
+      transform: scale(1.3);
+      background: rgba(16, 185, 129, 1);
+    }
+
+    .square.valid-target .eff-degree-label {
+      color: #6ee7b7 !important;
+      font-size: 0.95rem;
+      z-index: 6;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+    }
+
+    .square.oracle-best-highlight {
+      background-color: rgba(245, 158, 11, 0.35) !important;
+      box-shadow: inset 0 0 22px rgba(245, 158, 11, 0.9) !important;
+      animation: oracleGlow 1.2s infinite alternate !important;
+      z-index: 8;
+    }
+
+    .square.oracle-best-highlight::before {
+      background: rgba(245, 158, 11, 1) !important;
+      box-shadow: 0 0 24px rgba(245, 158, 11, 1) !important;
+      transform: scale(1.2);
+    }
+
+    .square.oracle-best-highlight .eff-degree-label {
+      color: #fffbeb !important;
+      font-size: 1.15rem !important;
+      font-weight: 900 !important;
+      text-shadow: 0 0 10px rgba(245, 158, 11, 1);
+    }
+
+    @keyframes oracleGlow {
+      0% {
+        box-shadow: inset 0 0 10px rgba(245, 158, 11, 0.5), 0 0 10px rgba(245, 158, 11, 0.4);
+        transform: scale(0.98);
+      }
+      100% {
+        box-shadow: inset 0 0 28px rgba(245, 158, 11, 1), 0 0 24px rgba(245, 158, 11, 0.9);
+        transform: scale(1.02);
+      }
+    }
+
+    .square.critical-dead-end {
+      background-color: rgba(239, 68, 68, 0.35) !important;
+      box-shadow: inset 0 0 18px rgba(239, 68, 68, 0.9) !important;
+      animation: criticalAlarm 0.75s infinite alternate !important;
+      z-index: 7;
+    }
+
+    .square.critical-dead-end .eff-degree-label {
+      color: #fca5a5 !important;
+      font-size: 1.1rem !important;
+      font-weight: 900 !important;
+      text-shadow: 0 0 8px rgba(239, 68, 68, 1);
+    }
+
+    @keyframes criticalAlarm {
+      0% {
+        box-shadow: inset 0 0 8px rgba(239, 68, 68, 0.5), 0 0 6px rgba(239, 68, 68, 0.4);
+        transform: scale(0.98);
+      }
+      100% {
+        box-shadow: inset 0 0 24px rgba(239, 68, 68, 1), 0 0 18px rgba(239, 68, 68, 0.85);
+        transform: scale(1.02);
+      }
+    }
+
+    .square.isolated-dead {
+      background-color: rgba(153, 27, 27, 0.45) !important;
+      border: 1px dashed rgba(239, 68, 68, 0.7);
+    }
+    .square.isolated-dead .eff-degree-label {
+      color: #f87171 !important;
+    }
+
+    .board-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      justify-content: center;
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    /* SAĞ PANEL */
+    .analytics-zone {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .alert-banner {
+      display: none;
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(153, 27, 27, 0.35));
+      border: 1px solid var(--accent-rose);
+      border-radius: 12px;
+      padding: 0.85rem 1.15rem;
+      align-items: center;
+      gap: 0.85rem;
+      animation: alertPulse 1.2s infinite alternate;
+    }
+
+    .alert-banner.active { display: flex; }
+
+    @keyframes alertPulse {
+      0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+      100% { box-shadow: 0 0 24px rgba(239, 68, 68, 0.65); }
+    }
+
+    .alert-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.2);
+      border: 2px solid var(--accent-rose);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fecaca;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .alert-text {
+      font-size: 0.86rem;
+      line-height: 1.45;
+      color: #fecdd3;
+    }
+    .alert-text strong {
+      color: #ffffff;
+      text-decoration: underline;
+    }
+
+    .oracle-card {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95));
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 16px;
+      padding: 1.2rem 1.35rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(245, 158, 11, 0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      position: relative;
+    }
+
+    .oracle-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 0.65rem;
+    }
+
+    .oracle-title {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fde68a;
+    }
+
+    .oracle-slots {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .hint-orb {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #fbbf24, #b45309);
+      border: 2px solid #fde68a;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      user-select: none;
+      position: relative;
+    }
+
+    .hint-orb:hover:not(.used):not(.disabled-level) {
+      transform: scale(1.15) translateY(-2px);
+      box-shadow: 0 0 22px rgba(245, 158, 11, 0.95);
+    }
+
+    .hint-orb:active:not(.used):not(.disabled-level) { transform: scale(0.95); }
+
+    .hint-orb.used {
+      background: #1e293b;
+      border-color: #475569;
+      box-shadow: none;
+      filter: grayscale(1);
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .hint-orb.used::after {
+      content: '✕';
+      position: absolute;
+      font-size: 1.1rem;
+      color: #ef4444;
+      font-weight: 900;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    }
+
+    .hint-orb.disabled-level {
+      background: #1e293b;
+      border-color: #475569;
+      box-shadow: none;
+      filter: grayscale(1);
+      opacity: 0.25;
+      cursor: not-allowed;
+    }
+
+    .oracle-explanation-box {
+      background: rgba(10, 15, 29, 0.7);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      border-radius: 12px;
+      padding: 0.95rem 1.1rem;
+      font-size: 0.88rem;
+      line-height: 1.55;
+      color: #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .oracle-target-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.95rem;
+    }
+
+    .target-coord-badge {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #0b0f19;
+      font-family: var(--font-mono);
+      font-weight: 800;
+      padding: 0.2rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    }
+
+    .oracle-rationale-title {
+      font-weight: 700;
+      color: #fde68a;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+    }
+
+    .oracle-rationale-body {
+      font-size: 0.84rem;
+      color: #e2e8f0;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 768px) {
+      .metric-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .metric-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 12px;
+      padding: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent-indigo), var(--accent-cyan));
+    }
+
+    .metric-card.emerald::before { background: linear-gradient(90deg, var(--accent-emerald), #34d399); }
+    .metric-card.amber::before { background: linear-gradient(90deg, var(--accent-amber), #fbbf24); }
+    .metric-card.rose::before { background: linear-gradient(90deg, var(--accent-rose), #f43f5e); }
+
+    .metric-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    .metric-val {
+      font-size: 1.5rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: baseline;
+      gap: 0.25rem;
+    }
+
+    .metric-sub {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .metric-foot {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .topology-status-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 14px;
+      padding: 1.15rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .status-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .progress-bar-wrap {
+      width: 100%;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 9999px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-indigo), var(--accent-cyan), var(--accent-emerald));
+      border-radius: 9999px;
+      transition: width 0.35s ease;
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.6);
+    }
+
+    .bipartite-meter {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 8px;
+      padding: 0.65rem 0.85rem;
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+    }
+
+    .bipartite-part {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .subset-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .subset-dot.w { background: #ffffff; box-shadow: 0 0 6px #fff; }
+    .subset-dot.b { background: #64748b; border: 1px solid #94a3b8; }
+
+    .academic-tabs {
+      display: flex;
+      gap: 0.35rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 0.45rem;
+      overflow-x: auto;
+    }
+
+    .tab-trigger {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.45rem 0.85rem;
+      border-radius: 6px;
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .tab-trigger:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-trigger.active {
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.12);
+    }
+
+    .academic-content-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 14px;
+      padding: 1.15rem;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+
+    .academic-content-box h4 {
+      font-size: 1rem;
+      color: #ffffff;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .academic-content-box p { margin-bottom: 0.65rem; }
+
+    .math-callout {
+      border-left: 3px solid var(--accent-indigo);
+      background: rgba(99, 102, 241, 0.08);
+      padding: 0.65rem 0.9rem;
+      border-radius: 0 8px 8px 0;
+      margin: 0.65rem 0;
+      font-size: 0.84rem;
+    }
+    .math-callout.amber {
+      border-left-color: var(--accent-amber);
+      background: rgba(245, 158, 11, 0.08);
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 7, 14, 0.86);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      padding: 1.5rem;
+    }
+
+    .modal-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-sheet {
+      background: #111827;
+      border: 1px solid var(--accent-indigo);
+      border-radius: 20px;
+      max-width: 540px;
+      width: 100%;
+      padding: 2.2rem;
+      text-align: center;
+      transform: scale(0.92);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
+    }
+
+    .modal-backdrop.active .modal-sheet { transform: scale(1); }
+
+    .modal-badge-icon {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      margin: 0 auto 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+    }
+
+    .modal-badge-icon.closed-tour {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-emerald);
+      border: 2px solid var(--accent-emerald);
+    }
+    .modal-badge-icon.open-tour {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-amber);
+      border: 2px solid var(--accent-amber);
+    }
+    .modal-badge-icon.deadlock {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--accent-rose);
+      border: 2px solid var(--accent-rose);
+    }
+
+    .modal-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin-bottom: 0.65rem;
+      color: #fff;
+    }
+
+    .modal-body {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =========================================================================
+       GİRİŞ EKRANI (TAHTA VE ZORLUK SEÇİM MODALI)
+       ========================================================================= -->
+  <div id="launcherOverlay" class="launcher-overlay">
+    <div class="launcher-card">
+      <div class="launcher-header">
+        <div class="launcher-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M19 22H5V20H19V22M17.16 8.35C16.84 8.78 16.32 9.07 15.69 9.17L17 12H13V14H15V18H7V17C7 15.9 7.9 15 9 15H10V13H8.5C7.12 13 6 11.88 6 10.5C6 9.84 6.26 9.24 6.69 8.79L5.5 4H8.5L9.5 6.5C10.5 5.5 12 5 13.5 5C14.7 5 15.82 5.37 16.74 6L18.5 4.5L19.5 5.5L17.16 8.35Z"/>
+          </svg>
+        </div>
+        <h2>Knight's Tour Laboratuvarı</h2>
+        <p>Hamilton Yolu, Efektif Düğüm Dereceleri ve Warnsdorff Sezgisel Algoritması ile interaktif Çizge Teorisi keşfine hoş geldiniz.</p>
+      </div>
+
+      <!-- 1. Tahta Şekli ve Boyutu Seçimi (Dikdörtgen [8x8, MxN] & L-Şeklinde) -->
+      <div>
+        <div class="launcher-section-title">
+          <span>📐</span> <span>1. Tahta Şekli & Boyutu Seçimi</span>
+        </div>
+
+        <!-- İki Ana Şekil Modu: Dikdörtgen ve L-Şeklinde -->
+        <div class="geom-tabs">
+          <div id="tabGeomRect" class="geom-tab active" onclick="selectGeometryMode('rect')">
+            <span class="geom-icon">⬛</span>
+            <div>
+              <div class="geom-title">Dikdörtgen Tahta</div>
+              <div class="geom-sub">8×8 veya Özel M×N Ölçüleri</div>
+            </div>
+          </div>
+          <div id="tabGeomL" class="geom-tab" onclick="selectGeometryMode('l-shaped')">
+            <span class="geom-icon">📐</span>
+            <div>
+              <div class="geom-title">L-Şeklinde Tahta</div>
+              <div class="geom-sub">Delikli Çizge • İndüklenmiş Alt-Graf</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DİKDÖRTGEN SEÇENEKLERİ: 8x8 ve MxN -->
+        <div id="rectOptionsSection">
+          <div class="selection-grid" style="grid-template-columns: 1fr 1fr;">
+            <!-- 8x8 Standart -->
+            <div id="boardOpt8x8" class="select-card active" onclick="selectRectPreset('8x8')">
+              <div class="card-val">8 × 8</div>
+              <div class="card-sub">Standart Dikdörtgen (64 Kare)</div>
+              <span id="badge8x8" style="font-size: 0.65rem; color: #6ee7b7; font-weight: 700; margin-top: 0.2rem;">● Seçili</span>
+            </div>
+
+            <!-- MxN Özel Boyut -->
+            <div id="boardOptMxN" class="select-card" onclick="selectRectPreset('mxn')">
+              <div class="card-val">M × N</div>
+              <div class="card-sub">Özel Boyutlu Dikdörtgen</div>
+              <span id="badgeMxN" style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; margin-top: 0.2rem;">Özelleştir</span>
+            </div>
+          </div>
+
+          <!-- MxN Özel Giriş Çekmecesi -->
+          <div id="customDimDrawer" class="custom-dim-drawer">
+            <div style="font-size: 0.85rem; color: #f8fafc;">
+              <strong>Özel Dikdörtgen Ölçüleri:</strong>
+              <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Satır (M) ve Sütun (N) değerini belirleyin (Min: 4, Max: 12)</span>
+            </div>
+            <div class="dim-inputs-wrap">
+              <div class="dim-control-group">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">M:</span>
+                <input type="number" id="inputRowsM" class="dim-input" value="6" min="4" max="12" onchange="onCustomDimChange()">
+              </div>
+              <span style="color: var(--accent-cyan); font-weight: 800;">×</span>
+              <div class="dim-control-group">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">N:</span>
+                <input type="number" id="inputColsN" class="dim-input" value="6" min="4" max="12" onchange="onCustomDimChange()">
+              </div>
+              <div style="font-size: 0.8rem; color: #a5b4fc; margin-left: 0.5rem;">
+                = <strong id="lblCustomTotalCells">36</strong> Kare
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- L-ŞEKLİNDE TAHTA SEÇENEKLERİ -->
+        <div id="lShapeOptionsSection" style="display: none;">
+          <div class="selection-grid" style="grid-template-columns: 1fr 1fr;">
+            <!-- L Standart (8x8 çerçevede sağ üst 4x4 kesik = 48 Kare) -->
+            <div id="lBoardOpt8x8" class="select-card active" onclick="selectLPreset('8x8')">
+              <div class="card-val">L (8 × 8)</div>
+              <div class="card-sub">Sağ Üstü Kesik L (48 Kare)</div>
+              <span id="badgeL8x8" style="font-size: 0.65rem; color: #6ee7b7; font-weight: 700; margin-top: 0.2rem;">● Seçili</span>
+            </div>
+
+            <!-- L Kompakt (6x6 çerçevede sağ üst 3x3 kesik = 27 Kare) -->
+            <div id="lBoardOpt6x6" class="select-card" onclick="selectLPreset('6x6')">
+              <div class="card-val">L (6 × 6)</div>
+              <div class="card-sub">Kompakt L (27 Kare)</div>
+              <span id="badgeL6x6" style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; margin-top: 0.2rem;">Seç</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Zorluk Seviyesi Seçimi -->
+      <div>
+        <div class="launcher-section-title">
+          <span>🎯</span> <span>2. Zorluk Seviyesi Seçimi</span>
+        </div>
+        <div class="diff-grid">
+          <!-- Başlangıç Seviyesi -->
+          <div id="diffOptBeginner" class="diff-card active theme-beginner" onclick="selectDifficulty('beginner')">
+            <div class="diff-header">
+              <span class="diff-title">Başlangıç</span>
+              <span id="badgeBeginner" class="diff-badge" style="color: #6ee7b7;">● Seçili</span>
+            </div>
+            <ul class="diff-features">
+              <li>💡 <strong>3 Kahin İpucu</strong></li>
+              <li>↩️ <strong>Sınırsız Geri Alma</strong></li>
+              <li>🔢 <strong>Karelerde Sayılar Açık</strong></li>
+              <li>⚠️ <strong>Kritik Uyarı Var</strong></li>
+            </ul>
+          </div>
+
+          <!-- Orta Seviye -->
+          <div id="diffOptMedium" class="diff-card theme-medium" onclick="selectDifficulty('medium')">
+            <div class="diff-header">
+              <span class="diff-title">Orta Seviye</span>
+              <span id="badgeMedium" class="diff-badge">Seç</span>
+            </div>
+            <ul class="diff-features">
+              <li>💡 <strong>2 Kahin İpucu</strong></li>
+              <li>↩️ <strong>3 Kez Geri Alma Hakkı</strong></li>
+              <li>🚫 <strong>Karelerde Sayı Yok</strong></li>
+              <li>⚠️ <strong>Sadece Tek Çıkış Uyarısı</strong></li>
+            </ul>
+          </div>
+
+          <!-- Zor Seviye -->
+          <div id="diffOptHard" class="diff-card theme-hard" onclick="selectDifficulty('hard')">
+            <div class="diff-header">
+              <span class="diff-title">Zor Seviye</span>
+              <span id="badgeHard" class="diff-badge">Seç</span>
+            </div>
+            <ul class="diff-features">
+              <li>🚫 <strong>İpucu Hakkı Yok</strong></li>
+              <li>🚫 <strong>Geri Alma Yok</strong></li>
+              <li>🚫 <strong>Karelerde Sayı Yok</strong></li>
+              <li>🔕 <strong>Hiçbir Uyarı Yok</strong></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Başlat Butonu -->
+      <button id="btnStartGame" class="btn-launch">
+        <span id="txtStartGameBtn">Laboratuvara Başla (8×8 • Başlangıç)</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M5 13h11.86l-5.43 5.43 1.42 1.42L21.14 12l-8.29-7.85-1.42 1.42 5.43 5.43H5v2z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Üst Başlık & Kontrol Çubuğu -->
+  <header>
+    <div class="brand-wrap">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 22H5V20H19V22M17.16 8.35C16.84 8.78 16.32 9.07 15.69 9.17L17 12H13V14H15V18H7V17C7 15.9 7.9 15 9 15H10V13H8.5C7.12 13 6 11.88 6 10.5C6 9.84 6.26 9.24 6.69 8.79L5.5 4H8.5L9.5 6.5C10.5 5.5 12 5 13.5 5C14.7 5 15.82 5.37 16.74 6L18.5 4.5L19.5 5.5L17.16 8.35Z"/>
+        </svg>
+      </div>
+      <div class="brand-meta">
+        <h1>Knight's Tour — Çizge Teorisi Laboratuvarı</h1>
+        <span id="headerLevelTag">8×8 Başlangıç Modu • Hamilton Yolu • Bipartite Çizgeler</span>
+      </div>
+    </div>
+
+    <div class="header-ctrls">
+      <!-- Giriş Ekranına Dön Butonu -->
+      <button id="btnOpenLauncher" class="btn btn-ghost" title="Tahta ve Zorluk Seçim Ekranını Aç">
+        ⚙️ Menü / Seviye & Tahta
+      </button>
+
+      <!-- Ayrıt Çizgileri Toggle -->
+      <button id="btnToggleEdges" class="btn btn-ghost" title="Satranç tahtası üzerindeki ayrıt (edge) çizgilerini göster/gizle">
+        Ayrıtlar: AÇIK
+      </button>
+
+      <!-- Ses Aç/Kapa -->
+      <button id="btnSoundToggle" class="btn btn-ghost" title="Ses efektleri">
+        <span id="sndIcon">🔊</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Ana Çalışma Masası (Split-Screen) -->
+  <main class="workbench">
+    
+    <!-- SOL PANEL: OYUN ALANI -->
+    <section class="game-zone">
+      <div class="board-pod">
+        
+        <div class="pod-top">
+          <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+            <div>
+              Durum: <strong id="lblGamePhase" style="color: var(--accent-cyan);">Başlangıç Bekleniyor</strong>
+            </div>
+            <!-- Bipartite Göstergesi -->
+            <div id="badgeBipartite" class="bipartite-badge">
+              Bipartite Geçişi: <span>Seçim Bekleniyor</span>
+            </div>
+          </div>
+          <!-- Tahtayı Büyütme Butonu -->
+          <button id="btnExpandBoard" class="btn-expand-board" title="Tahtayı Büyüt / Odak Modu (ESC ile kapatılabilir)">
+            <svg id="iconExpandSvg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+            </svg>
+            <span id="txtExpandBtn">Tahtayı Büyüt</span>
+          </button>
+        </div>
+
+        <!-- Dinamik MxN Satranç Tahtası ve Dinamik SVG Ayrıt Katmanı -->
+        <div id="boardContainer" class="board-container">
+          <svg id="svgEdges" class="svg-edge-layer">
+            <path id="svgTrailPath" class="edge-trail" d="" />
+            <g id="svgNodesLayer"></g>
+          </svg>
+          <div id="chessGrid" class="chessboard">
+            <!-- M x N Kare Dinamik Olarak Üretilir -->
+          </div>
+        </div>
+
+        <!-- Kontrol Butonları -->
+        <div class="board-controls">
+          <button id="btnUndo" class="btn btn-ghost" disabled title="Son hamleyi geri al">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>
+            </svg>
+            <span id="txtUndoBtn">Hamleyi Geri Al</span>
+          </button>
+
+          <button id="btnReset" class="btn btn-ghost" title="Tahtayı sıfırla ve seviye haklarını yenile">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
+            Yeniden Başlat
+          </button>
+
+          <button id="btnAutoSolver" class="btn btn-indigo" title="Warnsdorff Sezgisel Algoritması ile otomatik tam tur at">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            <span id="txtAutoSolver">Otomatik Çöz (Warnsdorff)</span>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SAĞ PANEL: TOPOLOJİ VE ÇİZGE ANALİZ MERKEZİ -->
+    <section class="analytics-zone">
+      
+      <!-- ÖLÜMCÜL DÜĞÜM ALARMI -->
+      <div id="criticalAlertBanner" class="alert-banner">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-text" id="criticalAlertMsg">
+          <strong>ÖLÜMCÜL UYARI:</strong> Sadece 1 çıkış yolunuz kaldı!
+        </div>
+      </div>
+
+      <!-- KAHİN İPUCU SİSTEMİ -->
+      <div class="oracle-card">
+        <div class="oracle-card-top">
+          <div class="oracle-title">
+            <span>💡</span>
+            <span>Warnsdorff Kahin İpuçları</span>
+            <span id="hintCountBadge" style="font-size: 0.78rem; font-family: var(--font-mono); color: var(--accent-amber); background: rgba(245, 158, 11, 0.15); padding: 0.15rem 0.5rem; border-radius: 9999px;">
+              3 / 3 Hak
+            </span>
+          </div>
+          <!-- 3 Adet İpucu Yuvası -->
+          <div class="oracle-slots">
+            <div id="hintSlot1" class="hint-orb" title="1. İpucu Hakkını Kullan" onclick="triggerOracleHint(1)">💡</div>
+            <div id="hintSlot2" class="hint-orb" title="2. İpucu Hakkını Kullan" onclick="triggerOracleHint(2)">💡</div>
+            <div id="hintSlot3" class="hint-orb" title="3. İpucu Hakkını Kullan" onclick="triggerOracleHint(3)">💡</div>
+          </div>
+        </div>
+
+        <div id="oracleOutputArea" class="oracle-explanation-box">
+          <div style="color: var(--text-muted); font-style: italic; font-size: 0.83rem;">
+            Zorlandığınız bir anda yukarıdaki <strong>💡 ipucu simgelerinden birine tıklayın</strong>.
+          </div>
+        </div>
+      </div>
+
+      <!-- Çizge Metrikleri Izgarası -->
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">Ziyaret Edilen (V)</div>
+          <div class="metric-val">
+            <span id="statVisitedNodes">0</span>
+            <span class="metric-sub" id="statTotalNodesSub">/ 64</span>
+          </div>
+          <div class="metric-foot" id="statNodesFoot">|V| = 64 düğüm</div>
+        </div>
+
+        <div class="metric-card emerald">
+          <div class="metric-label">Oluşan Ayrıt (|E|)</div>
+          <div class="metric-val">
+            <span id="statPathEdges">0</span>
+            <span class="metric-sub">ayrıt</span>
+          </div>
+          <div class="metric-foot">Yol: k - 1</div>
+        </div>
+
+        <div class="metric-card amber">
+          <div class="metric-label">Mevcut Derece deg(v)</div>
+          <div class="metric-val">
+            <span id="statCurrentDeg">-</span>
+            <span class="metric-sub">çıkış</span>
+          </div>
+          <div class="metric-foot">Aktif komşuluk</div>
+        </div>
+
+        <div class="metric-card rose">
+          <div class="metric-label" id="lblCriticalCard">Kritik Düğüm</div>
+          <div class="metric-val">
+            <span id="statCriticalNodes">0</span>
+            <span class="metric-sub">adet</span>
+          </div>
+          <div class="metric-foot" id="footCriticalCard">Acil müdahale</div>
+        </div>
+      </div>
+
+      <!-- Hamilton Yolu İlerlemesi ve Bipartite Dağılımı -->
+      <div class="topology-status-box">
+        <div class="status-line">
+          <span id="txtHamiltonTitle">Hamilton Yolu İnşası: $G \to P_{|V|}$</span>
+          <span id="txtHamiltonPct" style="font-family: var(--font-mono); color: var(--accent-cyan);">%0.0</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div id="barHamiltonFill" class="progress-fill-bar"></div>
+        </div>
+
+        <!-- Bipartite Dağılım Sayacı -->
+        <div class="bipartite-meter">
+          <div class="bipartite-part">
+            <div class="subset-dot w"></div>
+            <span>Beyaz Düğümler ($V_W$): <strong id="cntWhiteVisited">0</strong> / <span id="cntTotalWhite">32</span></span>
+          </div>
+          <div class="bipartite-part">
+            <div class="subset-dot b"></div>
+            <span>Siyah Düğümler ($V_B$): <strong id="cntBlackVisited">0</strong> / <span id="cntTotalBlack">32</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Çizge Teorisi Akademik Eğitim Modülleri -->
+      <div>
+        <div class="academic-tabs">
+          <button class="tab-trigger active" data-tab="geo2graph">1. Görsel Soyutlama</button>
+          <button class="tab-trigger" data-tab="bipartite">2. Bipartite Kuralı</button>
+          <button class="tab-trigger" data-tab="effective">3. Efektif Dereceler</button>
+          <button class="tab-trigger" data-tab="schwenk">4. Schwenk Teoremi</button>
+        </div>
+
+        <div id="academicPanel" class="academic-content-box">
+          <!-- Dinamik Eğitim İçeriği -->
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- MODAL: Kapanış, Zafer (Schwenk Analizi) veya Çıkmaz -->
+  <div id="gameModal" class="modal-backdrop">
+    <div class="modal-sheet">
+      <div id="modalIconBox" class="modal-badge-icon open-tour">★</div>
+      <h2 id="modalHeadline" class="modal-title">Başarı!</h2>
+      <div id="modalContent" class="modal-body">
+        Açıklama metni
+      </div>
+      <div class="modal-footer">
+        <button id="modalBtnUndo" class="btn btn-ghost">Hamleyi Geri Al</button>
+        <button id="modalBtnRestart" class="btn btn-indigo">Yeniden Başlat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- UYGULAMA MOTORU VE DİNAMİK GRAF VERİ YAPISI -->
+  <script>
+    /**
+     * =========================================================================
+     * DİNAMİK ÇİZGE TEORİSİ & AT TURU LABORATUVARI (M x N DESTEĞİ)
+     * =========================================================================
+     */
+
+    // --- SES MOTORU (Web Audio API) ---
+    class SynthSFX {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+        }
+      }
+      playMove(isWhite) {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        const freq = isWhite ? 523.25 : 392.00;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.5, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+      playOracleHint() {
+        if (!this.enabled) return;
+        this.init();
+        [587.33, 739.99, 880.00, 1174.66].forEach((f, i) => {
+          setTimeout(() => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f, this.ctx.currentTime);
+            gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.25);
+          }, i * 65);
+        });
+      }
+      playCriticalAlarm() {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(750, this.ctx.currentTime);
+        osc.frequency.setValueAtTime(600, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.14, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.16);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.16);
+      }
+      playUndo() {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(500, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(220, this.ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.12);
+      }
+      playVictory() {
+        if (!this.enabled) return;
+        this.init();
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+          setTimeout(() => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.35);
+          }, i * 110);
+        });
+      }
+    }
+
+    const sound = new SynthSFX();
+
+    // Atın 8 standart L hareketi
+    const KNIGHT_OFFSETS = [
+      { r: -2, c: -1 }, { r: -2, c: 1 },
+      { r: -1, c: -2 }, { r: -1, c: 2 },
+      { r: 1, c: -2 },  { r: 1, c: 2 },
+      { r: 2, c: -1 },  { r: 2, c: 1 }
+    ];
+
+    /**
+     * Dinamik M x N ve L-Şeklinde Şövalye Çizgesi Veri Yapısı
+     */
+    class KnightsGraphModel {
+      constructor(rows = 8, cols = 8, shape = 'rect') {
+        this.init(rows, cols, shape);
+      }
+
+      init(rows, cols, shape = 'rect') {
+        this.rows = rows;
+        this.cols = cols;
+        this.shape = shape;
+        this.maxCells = rows * cols;
+        this.allowedCells = new Set();
+
+        for (let r = 0; r < this.rows; r++) {
+          for (let c = 0; c < this.cols; c++) {
+            if (this.isCellAllowed(r, c)) {
+              this.allowedCells.add(this.toId(r, c));
+            }
+          }
+        }
+        this.totalNodes = this.allowedCells.size;
+
+        this.adjList = Array.from({ length: this.maxCells }, () => []);
+        this.adjMatrix = Array.from({ length: this.maxCells }, () => Array(this.maxCells).fill(false));
+        this.buildStaticGraph();
+      }
+
+      isCellAllowed(r, c) {
+        if (r < 0 || r >= this.rows || c < 0 || c >= this.cols) return false;
+        if (this.shape === 'l-shaped') {
+          // L-şekli için sağ üst çeyrek kesilerek delikli (L-biçimli) çizge oluşturulur
+          const cutR = Math.floor(this.rows / 2);
+          const cutC = Math.ceil(this.cols / 2);
+          if (r < cutR && c >= cutC) return false;
+        }
+        return true;
+      }
+
+      isCellAllowedId(id) {
+        return this.allowedCells.has(id);
+      }
+
+      toId(r, c) { return r * this.cols + c; }
+      toCoords(id) { return { r: Math.floor(id / this.cols), c: id % this.cols }; }
+
+      buildStaticGraph() {
+        for (let r = 0; r < this.rows; r++) {
+          for (let c = 0; c < this.cols; c++) {
+            if (!this.isCellAllowed(r, c)) continue;
+            const u = this.toId(r, c);
+            for (const offset of KNIGHT_OFFSETS) {
+              const nr = r + offset.r;
+              const nc = c + offset.c;
+              if (this.isCellAllowed(nr, nc)) {
+                const v = this.toId(nr, nc);
+                this.adjList[u].push(v);
+                this.adjMatrix[u][v] = true;
+              }
+            }
+          }
+        }
+      }
+
+      hasEdge(u, v) { return (this.adjMatrix[u] && this.adjMatrix[u][v]) || false; }
+      isWhiteSquare(r, c) { return (r + c) % 2 === 0; }
+    }
+
+    // --- UYGULAMA DURUMU (APP STATE) ---
+    const state = {
+      // Dinamik Tahta Geometrisi & Ölçüleri
+      geometryMode: 'rect', // 'rect' | 'l-shaped'
+      boardPreset: '8x8',
+      lPreset: '8x8',
+      rows: 8,
+      cols: 8,
+      totalNodes: 64,
+
+      // Zorluk Seviyesi: 'beginner' | 'medium' | 'hard'
+      difficulty: 'beginner',
+
+      visited: [],
+      visitOrder: [],
+      effectiveDegrees: [],
+      history: [],
+      
+      currentId: null,
+      isGraphMode: false,
+      isGameOver: false,
+      isVictory: false,
+
+      oracleHintsMax: 3,
+      oracleHintsLeft: 3,
+      usedHints: [false, false, false],
+      activeOracleHighlightId: null,
+
+      undoMax: Infinity,
+      undoLeft: Infinity,
+
+      showEdges: true,
+      autoSolving: false,
+      autoSolveTimer: null,
+      autoSolveSpeed: 170
+    };
+
+    let graph = new KnightsGraphModel(8, 8, 'rect');
+
+    // --- DOM ELEMENTLERİ ---
+    const launcherOverlay = document.getElementById('launcherOverlay');
+    const btnStartGame = document.getElementById('btnStartGame');
+    const txtStartGameBtn = document.getElementById('txtStartGameBtn');
+    const btnOpenLauncher = document.getElementById('btnOpenLauncher');
+    const headerLevelTag = document.getElementById('headerLevelTag');
+
+    const tabGeomRect = document.getElementById('tabGeomRect');
+    const tabGeomL = document.getElementById('tabGeomL');
+    const rectOptionsSection = document.getElementById('rectOptionsSection');
+    const lShapeOptionsSection = document.getElementById('lShapeOptionsSection');
+
+    const boardOpt8x8 = document.getElementById('boardOpt8x8');
+    const boardOptMxN = document.getElementById('boardOptMxN');
+    const badge8x8 = document.getElementById('badge8x8');
+    const badgeMxN = document.getElementById('badgeMxN');
+
+    const lBoardOpt8x8 = document.getElementById('lBoardOpt8x8');
+    const lBoardOpt6x6 = document.getElementById('lBoardOpt6x6');
+    const badgeL8x8 = document.getElementById('badgeL8x8');
+    const badgeL6x6 = document.getElementById('badgeL6x6');
+
+    const customDimDrawer = document.getElementById('customDimDrawer');
+    const inputRowsM = document.getElementById('inputRowsM');
+    const inputColsN = document.getElementById('inputColsN');
+    const lblCustomTotalCells = document.getElementById('lblCustomTotalCells');
+
+    const diffOptBeginner = document.getElementById('diffOptBeginner');
+    const diffOptMedium = document.getElementById('diffOptMedium');
+    const diffOptHard = document.getElementById('diffOptHard');
+    const badgeBeginner = document.getElementById('badgeBeginner');
+    const badgeMedium = document.getElementById('badgeMedium');
+    const badgeHard = document.getElementById('badgeHard');
+
+    const boardContainer = document.getElementById('boardContainer');
+    const chessGrid = document.getElementById('chessGrid');
+    const svgEdges = document.getElementById('svgEdges');
+    const svgTrailPath = document.getElementById('svgTrailPath');
+    const svgNodesLayer = document.getElementById('svgNodesLayer');
+
+    const lblGamePhase = document.getElementById('lblGamePhase');
+    const badgeBipartite = document.getElementById('badgeBipartite');
+
+    const criticalAlertBanner = document.getElementById('criticalAlertBanner');
+    const criticalAlertMsg = document.getElementById('criticalAlertMsg');
+
+    const statVisitedNodes = document.getElementById('statVisitedNodes');
+    const statTotalNodesSub = document.getElementById('statTotalNodesSub');
+    const statNodesFoot = document.getElementById('statNodesFoot');
+    const statPathEdges = document.getElementById('statPathEdges');
+    const statCurrentDeg = document.getElementById('statCurrentDeg');
+    const statCriticalNodes = document.getElementById('statCriticalNodes');
+    const lblCriticalCard = document.getElementById('lblCriticalCard');
+    const footCriticalCard = document.getElementById('footCriticalCard');
+
+    const txtHamiltonTitle = document.getElementById('txtHamiltonTitle');
+    const txtHamiltonPct = document.getElementById('txtHamiltonPct');
+    const barHamiltonFill = document.getElementById('barHamiltonFill');
+    const cntWhiteVisited = document.getElementById('cntWhiteVisited');
+    const cntBlackVisited = document.getElementById('cntBlackVisited');
+    const cntTotalWhite = document.getElementById('cntTotalWhite');
+    const cntTotalBlack = document.getElementById('cntTotalBlack');
+
+    const hintCountBadge = document.getElementById('hintCountBadge');
+    const oracleOutputArea = document.getElementById('oracleOutputArea');
+    const academicPanel = document.getElementById('academicPanel');
+
+    const btnToggleEdges = document.getElementById('btnToggleEdges');
+    const btnSoundToggle = document.getElementById('btnSoundToggle');
+    const sndIcon = document.getElementById('sndIcon');
+    const btnUndo = document.getElementById('btnUndo');
+    const txtUndoBtn = document.getElementById('txtUndoBtn');
+    const btnReset = document.getElementById('btnReset');
+    const btnAutoSolver = document.getElementById('btnAutoSolver');
+    const txtAutoSolver = document.getElementById('txtAutoSolver');
+
+    const gameModal = document.getElementById('gameModal');
+    const modalIconBox = document.getElementById('modalIconBox');
+    const modalHeadline = document.getElementById('modalHeadline');
+    const modalContent = document.getElementById('modalContent');
+    const modalBtnUndo = document.getElementById('modalBtnUndo');
+    const modalBtnRestart = document.getElementById('modalBtnRestart');
+
+    // --- TAHTA GEOMETRİSİ VE SEÇİM MANTIĞI ---
+    window.selectGeometryMode = function(mode) {
+      state.geometryMode = mode;
+
+      if (mode === 'rect') {
+        tabGeomRect.classList.add('active');
+        tabGeomL.classList.remove('active');
+        rectOptionsSection.style.display = 'block';
+        lShapeOptionsSection.style.display = 'none';
+        selectRectPreset(state.boardPreset || '8x8');
+      } else {
+        tabGeomL.classList.add('active');
+        tabGeomRect.classList.remove('active');
+        rectOptionsSection.style.display = 'none';
+        lShapeOptionsSection.style.display = 'block';
+        selectLPreset(state.lPreset || '8x8');
+      }
+    };
+
+    window.selectRectPreset = function(preset) {
+      state.boardPreset = preset;
+
+      [boardOpt8x8, boardOptMxN].forEach(el => el && el.classList.remove('active'));
+      if (badge8x8) { badge8x8.textContent = 'Seç'; badge8x8.style.color = 'var(--text-muted)'; }
+      if (badgeMxN) { badgeMxN.textContent = 'Özelleştir'; badgeMxN.style.color = 'var(--text-muted)'; }
+
+      if (preset === '8x8') {
+        state.rows = 8;
+        state.cols = 8;
+        state.totalNodes = 64;
+        boardOpt8x8.classList.add('active');
+        badge8x8.textContent = '● Seçili';
+        badge8x8.style.color = '#6ee7b7';
+        if (customDimDrawer) customDimDrawer.classList.remove('active');
+      } else if (preset === 'mxn') {
+        boardOptMxN.classList.add('active');
+        badgeMxN.textContent = '● Seçili';
+        badgeMxN.style.color = '#6ee7b7';
+        if (customDimDrawer) customDimDrawer.classList.add('active');
+        onCustomDimChange();
+        return;
+      }
+
+      updateStartButtonText();
+    };
+
+    window.selectLPreset = function(preset) {
+      state.lPreset = preset;
+
+      [lBoardOpt8x8, lBoardOpt6x6].forEach(el => el && el.classList.remove('active'));
+      if (badgeL8x8) { badgeL8x8.textContent = 'Seç'; badgeL8x8.style.color = 'var(--text-muted)'; }
+      if (badgeL6x6) { badgeL6x6.textContent = 'Seç'; badgeL6x6.style.color = 'var(--text-muted)'; }
+
+      if (preset === '8x8') {
+        state.rows = 8;
+        state.cols = 8;
+        state.totalNodes = 48; // 64 - 16 kesik
+        lBoardOpt8x8.classList.add('active');
+        badgeL8x8.textContent = '● Seçili';
+        badgeL8x8.style.color = '#6ee7b7';
+      } else if (preset === '6x6') {
+        state.rows = 6;
+        state.cols = 6;
+        state.totalNodes = 27; // 36 - 9 kesik
+        lBoardOpt6x6.classList.add('active');
+        badgeL6x6.textContent = '● Seçili';
+        badgeL6x6.style.color = '#6ee7b7';
+      }
+
+      updateStartButtonText();
+    };
+
+    window.onCustomDimChange = function() {
+      let r = parseInt(inputRowsM.value, 10);
+      let c = parseInt(inputColsN.value, 10);
+
+      if (isNaN(r) || r < 4) r = 4;
+      if (r > 12) r = 12;
+      if (isNaN(c) || c < 4) c = 4;
+      if (c > 12) c = 12;
+
+      inputRowsM.value = r;
+      inputColsN.value = c;
+      lblCustomTotalCells.textContent = r * c;
+
+      state.rows = r;
+      state.cols = c;
+      state.totalNodes = r * c;
+      updateStartButtonText();
+    };
+
+    // --- ZORLUK SEVİYESİ SEÇİM MANTIĞI ---
+    window.selectDifficulty = function(level) {
+      state.difficulty = level;
+
+      [diffOptBeginner, diffOptMedium, diffOptHard].forEach(el => el.classList.remove('active'));
+      badgeBeginner.textContent = 'Seç'; badgeBeginner.style.color = 'var(--text-muted)';
+      badgeMedium.textContent = 'Seç'; badgeMedium.style.color = 'var(--text-muted)';
+      badgeHard.textContent = 'Seç'; badgeHard.style.color = 'var(--text-muted)';
+
+      if (level === 'beginner') {
+        diffOptBeginner.classList.add('active');
+        badgeBeginner.textContent = '● Seçili'; badgeBeginner.style.color = '#6ee7b7';
+      } else if (level === 'medium') {
+        diffOptMedium.classList.add('active');
+        badgeMedium.textContent = '● Seçili'; badgeMedium.style.color = '#fde68a';
+      } else if (level === 'hard') {
+        diffOptHard.classList.add('active');
+        badgeHard.textContent = '● Seçili'; badgeHard.style.color = '#fda4af';
+      }
+      updateStartButtonText();
+    };
+
+    function updateStartButtonText() {
+      const levelNames = { beginner: 'Başlangıç', medium: 'Orta Seviye', hard: 'Zor Seviye' };
+      let shapeDesc = '';
+      if (state.geometryMode === 'l-shaped') {
+        shapeDesc = `L-Şekli ${state.rows}×${state.cols} (${state.totalNodes} Kare)`;
+      } else {
+        shapeDesc = `Dikdörtgen ${state.rows}×${state.cols} (${state.totalNodes} Kare)`;
+      }
+      txtStartGameBtn.textContent = `Laboratuvara Başla (${shapeDesc} • ${levelNames[state.difficulty]})`;
+    }
+
+    function applyDifficultyRules() {
+      const shapeDesc = state.geometryMode === 'l-shaped' ? `L-Şekli (${state.rows}×${state.cols}, ${state.totalNodes} Kare)` : `Dikdörtgen ${state.rows}×${state.cols}`;
+      if (state.difficulty === 'beginner') {
+        state.oracleHintsMax = 3; state.oracleHintsLeft = 3;
+        state.undoMax = Infinity; state.undoLeft = Infinity;
+        headerLevelTag.textContent = `${shapeDesc} • Başlangıç (3 İpucu • Sınırsız Geri Alma • Dereceler Açık)`;
+      } else if (state.difficulty === 'medium') {
+        state.oracleHintsMax = 2; state.oracleHintsLeft = 2;
+        state.undoMax = 3; state.undoLeft = 3;
+        headerLevelTag.textContent = `${shapeDesc} • Orta Seviye (2 İpucu • 3 Geri Alma • Sayılar Gizli • Tek Çıkış Uyarısı)`;
+      } else if (state.difficulty === 'hard') {
+        state.oracleHintsMax = 0; state.oracleHintsLeft = 0;
+        state.undoMax = 0; state.undoLeft = 0;
+        headerLevelTag.textContent = `${shapeDesc} • Zor Seviye (İpucu Yok • Geri Alma Yok • Sayılar Gizli • Uyarı Yok)`;
+      }
+
+      setupOracleSlotsUI();
+      updateUndoButtonUI();
+    }
+
+    function setupOracleSlotsUI() {
+      state.usedHints = [false, false, false];
+      for (let i = 1; i <= 3; i++) {
+        const slot = document.getElementById(`hintSlot${i}`);
+        slot.classList.remove('used', 'disabled-level');
+
+        if (state.difficulty === 'beginner') {
+          slot.style.display = 'flex';
+          slot.title = `${i}. İpucu Hakkını Kullan`;
+        } else if (state.difficulty === 'medium') {
+          if (i <= 2) {
+            slot.style.display = 'flex';
+            slot.title = `${i}. İpucu Hakkını Kullan`;
+          } else {
+            slot.style.display = 'none';
+          }
+        } else if (state.difficulty === 'hard') {
+          slot.style.display = 'flex';
+          slot.classList.add('disabled-level');
+          slot.title = 'Zor seviyede ipucu kullanılamaz';
+        }
+      }
+
+      if (state.difficulty === 'beginner') {
+        hintCountBadge.textContent = '3 / 3 Hak';
+        oracleOutputArea.innerHTML = `<div style="color: var(--text-muted); font-style: italic; font-size: 0.83rem;">Zorlandığınız anda yukarıdaki <strong>💡 ipuçlarından birine</strong> tıklayabilirsiniz.</div>`;
+      } else if (state.difficulty === 'medium') {
+        hintCountBadge.textContent = '2 / 2 Hak';
+        oracleOutputArea.innerHTML = `<div style="color: var(--text-muted); font-style: italic; font-size: 0.83rem;">Orta Seviye: <strong>2 adet ipucu hakkınız</strong> bulunmaktadır. Karelerdeki sayılar gizlidir.</div>`;
+      } else if (state.difficulty === 'hard') {
+        hintCountBadge.textContent = 'KAPALI (0 Hak)';
+        oracleOutputArea.innerHTML = `<div style="color: #fda4af; font-size: 0.83rem;"><strong>Zor Seviye Aktif:</strong> İpucu desteği, geri alma hakkı ve uyarılar tamamen devre dışıdır. Saf konsantrasyon gerektirir!</div>`;
+      }
+    }
+
+    function updateUndoButtonUI() {
+      if (state.difficulty === 'beginner') {
+        txtUndoBtn.textContent = 'Hamleyi Geri Al';
+        btnUndo.disabled = state.history.length === 0 || state.autoSolving;
+      } else if (state.difficulty === 'medium') {
+        txtUndoBtn.innerHTML = `Hamleyi Geri Al (${state.undoLeft}/3)`;
+        btnUndo.disabled = state.history.length === 0 || state.undoLeft <= 0 || state.autoSolving;
+      } else if (state.difficulty === 'hard') {
+        txtUndoBtn.textContent = 'Geri Alma (Devre Dışı)';
+        btnUndo.disabled = true;
+      }
+    }
+
+    // --- DİNAMİK TAHTA & EFEKTİF DERECE MOTORU ---
+    function reconfigureBoard() {
+      graph.init(state.rows, state.cols, state.geometryMode);
+      state.totalNodes = graph.totalNodes;
+
+      state.visited = Array(graph.maxCells).fill(false);
+      state.visitOrder = Array(graph.maxCells).fill(0);
+      state.effectiveDegrees = Array(graph.maxCells).fill(0);
+      state.history = [];
+      state.currentId = null;
+      state.isGraphMode = false;
+      boardContainer.classList.remove('graph-mode');
+      state.isGameOver = false;
+      state.isVictory = false;
+      state.activeOracleHighlightId = null;
+
+      // CSS Grid Ayarları
+      chessGrid.style.gridTemplateColumns = `repeat(${state.cols}, 1fr)`;
+      chessGrid.style.gridTemplateRows = `repeat(${state.rows}, 1fr)`;
+      boardContainer.style.aspectRatio = `${state.cols} / ${state.rows}`;
+
+      // SVG ViewBox
+      svgEdges.setAttribute('viewBox', `0 0 ${state.cols * 100} ${state.rows * 100}`);
+
+      // Bipartite Toplam Sayıcıları (Sadece geçerli düğümler)
+      let totalWhite = 0;
+      let totalBlack = 0;
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          if (!graph.isCellAllowed(r, c)) continue;
+          if (graph.isWhiteSquare(r, c)) totalWhite++;
+          else totalBlack++;
+        }
+      }
+      cntTotalWhite.textContent = totalWhite;
+      cntTotalBlack.textContent = totalBlack;
+
+      statTotalNodesSub.textContent = `/ ${state.totalNodes}`;
+      statNodesFoot.textContent = `|V| = ${state.totalNodes} düğüm`;
+      const shapeName = state.geometryMode === 'l-shaped' ? `L-Tahta(${state.rows}×${state.cols})` : `G(${state.rows}×${state.cols})`;
+      txtHamiltonTitle.textContent = `Hamilton Yolu: ${shapeName} → P_${state.totalNodes}`;
+
+      buildBoardDOM();
+      resetEffectiveDegrees();
+      applyDifficultyRules();
+      render();
+    }
+
+    function resetEffectiveDegrees() {
+      for (let i = 0; i < graph.maxCells; i++) {
+        state.effectiveDegrees[i] = graph.adjList[i] ? graph.adjList[i].length : 0;
+      }
+    }
+
+    function decrementNeighborDegrees(u) {
+      for (const v of graph.adjList[u]) {
+        if (!state.visited[v]) {
+          state.effectiveDegrees[v] = Math.max(0, state.effectiveDegrees[v] - 1);
+        }
+      }
+    }
+
+    function incrementNeighborDegrees(u) {
+      for (const v of graph.adjList[u]) {
+        if (!state.visited[v]) {
+          state.effectiveDegrees[v]++;
+        }
+      }
+    }
+
+    function getValidTargets(currentId) {
+      if (currentId === null) return [];
+      return graph.adjList[currentId].filter(v => !state.visited[v]);
+    }
+
+    function getWarnsdorffChoice(validTargets) {
+      if (!validTargets || validTargets.length === 0) return null;
+      let minDeg = Infinity;
+      let candidates = [];
+
+      for (const v of validTargets) {
+        const deg = state.effectiveDegrees[v];
+        if (deg < minDeg) {
+          minDeg = deg;
+          candidates = [v];
+        } else if (deg === minDeg) {
+          candidates.push(v);
+        }
+      }
+
+      const centerR = (state.rows - 1) / 2;
+      const centerC = (state.cols - 1) / 2;
+
+      candidates.sort((a, b) => {
+        const ca = graph.toCoords(a);
+        const cb = graph.toCoords(b);
+        const distA = Math.max(Math.abs(ca.r - centerR), Math.abs(ca.c - centerC));
+        const distB = Math.max(Math.abs(cb.r - centerR), Math.abs(cb.c - centerC));
+        return distB - distA;
+      });
+
+      return candidates[0];
+    }
+
+    function checkCriticalDegreeOneNodes() {
+      const criticalNodes = [];
+      for (const i of graph.allowedCells) {
+        if (!state.visited[i] && i !== state.currentId) {
+          if (state.effectiveDegrees[i] === 1) {
+            criticalNodes.push(i);
+          }
+        }
+      }
+      return criticalNodes;
+    }
+
+    // --- 3X KAHİN İPUCU SİSTEMİ MANTIĞI ---
+    window.triggerOracleHint = function(slotIndex) {
+      if (state.difficulty === 'hard') {
+        oracleOutputArea.innerHTML = `<div style="color: #fda4af;">Zor seviyede ipucu desteği devre dışıdır.</div>`;
+        return;
+      }
+      if (state.difficulty === 'medium' && slotIndex > 2) return;
+      if (state.usedHints[slotIndex - 1]) return;
+
+      if (state.history.length === 0) {
+        oracleOutputArea.innerHTML = `
+          <div style="color: #fda4af;">
+            <strong>⚠️ Önce Başlangıç Karesini Seçin!</strong> Tahta üzerinde herhangi bir kareye tıklayarak atı yerleştirin.
+          </div>
+        `;
+        return;
+      }
+
+      if (state.isGameOver || state.isVictory) return;
+
+      const validTargets = getValidTargets(state.currentId);
+      if (validTargets.length === 0) {
+        oracleOutputArea.innerHTML = `<div style="color: #fda4af;">Atın gidebileceği yasal hamle kalmadı (Çıkmaz).</div>`;
+        return;
+      }
+
+      state.usedHints[slotIndex - 1] = true;
+      state.oracleHintsLeft--;
+      document.getElementById(`hintSlot${slotIndex}`).classList.add('used');
+      document.getElementById(`hintSlot${slotIndex}`).title = `${slotIndex}. İpucu Kullanıldı`;
+      hintCountBadge.textContent = `${state.oracleHintsLeft} / ${state.oracleHintsMax} Hak`;
+
+      const bestMoveId = getWarnsdorffChoice(validTargets);
+      state.activeOracleHighlightId = bestMoveId;
+
+      sound.playOracleHint();
+
+      const bestCoords = graph.toCoords(bestMoveId);
+      const bestNotation = `${String.fromCharCode(97 + bestCoords.c)}${state.rows - bestCoords.r}`;
+      const bestDeg = state.effectiveDegrees[bestMoveId];
+
+      const alternatives = validTargets
+        .filter(id => id !== bestMoveId)
+        .map(id => {
+          const c = graph.toCoords(id);
+          return `${String.fromCharCode(97 + c.c)}${state.rows - c.r} (deg: ${state.effectiveDegrees[id]})`;
+        });
+
+      const altText = alternatives.length > 0 ? `Diğer seçenekler: ${alternatives.join(', ')}.` : 'Tek yasal hamle seçeneği.';
+
+      let edgeRationale = '';
+      const isEdgeOrCorner = bestCoords.r === 0 || bestCoords.r === state.rows - 1 || bestCoords.c === 0 || bestCoords.c === state.cols - 1;
+      if (isEdgeOrCorner) {
+        edgeRationale = 'Bu kare kenar/köşe bölgesinde yer alıyor. Az çıkışa sahip düğümler erkenden ziyaret edilmezse izole kalır.';
+      } else {
+        edgeRationale = 'Bu kare mevcut uzaydaki en darboğaz (minimum efektif dereceli) komşuluktur.';
+      }
+
+      oracleOutputArea.innerHTML = `
+        <div class="oracle-target-row">
+          <span style="font-weight: 700; color: #fff;">💡 En Doğru Hamle:</span>
+          <span class="target-coord-badge">${bestNotation}</span>
+          <span style="font-family: var(--font-mono); color: #6ee7b7; font-size: 0.85rem;">(deg: ${bestDeg})</span>
+        </div>
+        <div class="oracle-rationale-title">
+          <span>📐</span> <span>Neden En Doğru Hamle?</span>
+        </div>
+        <div class="oracle-rationale-body">
+          <strong>1. Warnsdorff Kuralı:</strong> <code>${bestNotation}</code> karesi sadece <strong>${bestDeg} çıkışa</strong> sahip. ${altText}<br>
+          <strong>2. Çıkmazı Engelleme:</strong> ${edgeRationale} En az çıkışlı kareye öncelik vermek, ileride izole düğüm oluşumunu engeller!
+        </div>
+      `;
+
+      render();
+    };
+
+    // --- SATRANÇ TAHTASI DOM OLUŞTURMA ---
+    function buildBoardDOM() {
+      chessGrid.innerHTML = '';
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          const id = graph.toId(r, c);
+
+          if (!graph.isCellAllowed(r, c)) {
+            // L-Şeklinde kesilen boşluk hücresi (CSS grid düzenini koruyan görünmez eleman)
+            const voidCell = document.createElement('div');
+            voidCell.className = 'square void-cell';
+            voidCell.id = `sq-${id}`;
+            chessGrid.appendChild(voidCell);
+            continue;
+          }
+
+          const isWhite = graph.isWhiteSquare(r, c);
+          const square = document.createElement('div');
+          square.className = `square ${isWhite ? 'light' : 'dark'}`;
+          square.dataset.id = id;
+          square.id = `sq-${id}`;
+
+          if (c === state.cols - 1 || !graph.isCellAllowed(r, c + 1)) {
+            const rLabel = document.createElement('span');
+            rLabel.className = 'sq-coord-r';
+            rLabel.textContent = state.rows - r;
+            square.appendChild(rLabel);
+          }
+          if (r === state.rows - 1 || !graph.isCellAllowed(r + 1, c)) {
+            const cLabel = document.createElement('span');
+            cLabel.className = 'sq-coord-c';
+            cLabel.textContent = String.fromCharCode(97 + c);
+            square.appendChild(cLabel);
+          }
+
+          const degSpan = document.createElement('span');
+          degSpan.className = 'eff-degree-label';
+          degSpan.textContent = graph.adjList[id].length;
+          square.appendChild(degSpan);
+
+          square.addEventListener('click', () => onSquareClick(id));
+          chessGrid.appendChild(square);
+        }
+      }
+    }
+
+    // --- HAMLE YÖNETİMİ ---
+    function onSquareClick(id) {
+      if (state.autoSolving || state.isGameOver || state.isVictory) return;
+
+      if (state.history.length === 0) {
+        executeMove(id);
+        return;
+      }
+
+      const validTargets = getValidTargets(state.currentId);
+      if (validTargets.includes(id)) {
+        executeMove(id);
+      }
+    }
+
+    function executeMove(id) {
+      const coords = graph.toCoords(id);
+      const isWhite = graph.isWhiteSquare(coords.r, coords.c);
+
+      state.visited[id] = true;
+      const step = state.history.length + 1;
+      state.visitOrder[id] = step;
+      state.currentId = id;
+      state.history.push({ id, r: coords.r, c: coords.c, step, isWhite });
+
+      state.activeOracleHighlightId = null;
+
+      if (!state.isGraphMode) {
+        state.isGraphMode = true;
+        boardContainer.classList.add('graph-mode');
+      }
+
+      decrementNeighborDegrees(id);
+      sound.playMove(isWhite);
+      evaluateGameEnd(id);
+      render();
+    }
+
+    function undoMove() {
+      if (state.history.length === 0 || state.autoSolving) return;
+      if (state.difficulty === 'hard') return;
+
+      if (state.difficulty === 'medium') {
+        if (state.undoLeft <= 0) return;
+        state.undoLeft--;
+      }
+
+      const last = state.history.pop();
+      state.visited[last.id] = false;
+      state.visitOrder[last.id] = 0;
+      state.activeOracleHighlightId = null;
+
+      incrementNeighborDegrees(last.id);
+
+      if (state.history.length > 0) {
+        const prev = state.history[state.history.length - 1];
+        state.currentId = prev.id;
+      } else {
+        state.currentId = null;
+        state.isGraphMode = false;
+        boardContainer.classList.remove('graph-mode');
+      }
+
+      state.isGameOver = false;
+      state.isVictory = false;
+      closeModal();
+
+      sound.playUndo();
+      render();
+    }
+
+    function resetGame() {
+      stopAutoSolver();
+      state.visited.fill(false);
+      state.visitOrder.fill(0);
+      state.history = [];
+      state.currentId = null;
+      state.isGraphMode = false;
+      boardContainer.classList.remove('graph-mode');
+      state.isGameOver = false;
+      state.isVictory = false;
+      state.activeOracleHighlightId = null;
+
+      applyDifficultyRules();
+      resetEffectiveDegrees();
+      closeModal();
+      render();
+    }
+
+    // --- SCHWENK TEOREMİ & ÇIKMAZ ANALİZİ (M x N DİNAMİK & L-ŞEKLİ) ---
+    function evaluateGameEnd(lastId) {
+      if (state.history.length === state.totalNodes) {
+        state.isVictory = true;
+        const firstId = state.history[0].id;
+        const isClosedCycle = graph.hasEdge(lastId, firstId);
+
+        sound.playVictory();
+
+        if (state.geometryMode === 'l-shaped') {
+          if (isClosedCycle) {
+            openModal(
+              'closed-tour',
+              '👑',
+              'Tebrikler: L-Şeklinde Kapalı Hamilton Döngüsü Bulundu!',
+              `<strong>Mükemmel Çizge Tamamlaması!</strong><br><br>
+               L-şeklindeki <strong>${state.totalNodes} karelik</strong> tahtanın tümünü eksiksiz gezdiniz ve son adımınız 1. başlangıç karesine bağlandı.<br><br>
+               Delikli alt-çizgede kapalı bir Hamilton döngüsü kurmayı başardınız!`
+            );
+          } else {
+            openModal(
+              'open-tour',
+              '⭐',
+              'Tebrikler: L-Şeklinde Hamilton Yolu Bulundu!',
+              `<strong>Tüm Düğümler Gezildi!</strong><br><br>
+               L-şeklindeki tahtada <strong>${state.totalNodes} düğümün</strong> her birine tam 1 kez uğrayarak eksiksiz bir <strong>Açık Hamilton Yolu</strong> inşa ettiniz!`
+            );
+          }
+          return;
+        }
+
+        // Dikdörtgen için Schwenk Teoremi Analizi: m <= n durumunda kapalı tur var mı?
+        const m = Math.min(state.rows, state.cols);
+        const n = Math.max(state.rows, state.cols);
+        const isBothOdd = (m % 2 !== 0 && n % 2 !== 0);
+        const isNarrow = [1, 2, 4].includes(m);
+        const isSpecial3 = (m === 3 && [4, 6, 8].includes(n));
+        const canHaveClosedTour = !(isBothOdd || isNarrow || isSpecial3);
+
+        if (isClosedCycle) {
+          openModal(
+            'closed-tour',
+            '👑',
+            'Tebrikler: Hamilton Döngüsü (Kapalı Tur) Bulundu!',
+            `<strong>Mükemmel Çizge Tamamlaması!</strong><br><br>
+             ${state.rows}×${state.cols} (${state.totalNodes} kare) tahtanın tümünü gezdiniz ve son adımınız 1. başlangıç karesine bağlandı.<br><br>
+             <em>Schwenk Teoremi (1991):</em> Bu tahta ölçülerinde kapalı döngü aranabilir ve siz bunu başarıyla inşa ettiniz!`
+          );
+        } else {
+          let schwenkNote = '';
+          if (isBothOdd) {
+            schwenkNote = `Bu tahtada hem M hem N tek sayıdır (${state.rows}×${state.cols}=${state.totalNodes} kare). <em>Schwenk Teoremi</em> uyarınca tek boyutlu tahtalarda Bipartite renk dengesizliği nedeniyle <strong>asla Kapalı Hamilton Döngüsü olamaz</strong>! Açık Hamilton Yolunu bularak tahtadaki en üstün başarıya ulaştınız!`;
+          } else if (canHaveClosedTour) {
+            schwenkNote = `Schwenk Teoremi'ne göre bu ${state.rows}×${state.cols} tahtada başlangıç karesine geri dönen kapalı bir döngü bulmak mümkündür! Tekrar deneyerek döngüyü arayabilirsiniz.`;
+          } else {
+            schwenkNote = `Açık Hamilton Yolunu eksiksiz tamamladınız!`;
+          }
+
+          openModal(
+            'open-tour',
+            '⭐',
+            'Tebrikler: Hamilton Yolu Bulundu!',
+            `<strong>Tüm Düğümler Gezildi!</strong><br><br>
+             ${state.totalNodes} düğümün her birine tam 1 kez uğrayarak eksiksiz bir <strong>Açık Hamilton Yolu</strong> inşa ettiniz.<br><br>
+             <span style="color: var(--accent-amber);"><strong>Schwenk Teoremi Değerlendirmesi:</strong></span><br>${schwenkNote}`
+          );
+        }
+        return;
+      }
+
+      const validTargets = getValidTargets(lastId);
+      if (validTargets.length === 0) {
+        state.isGameOver = true;
+        sound.playCriticalAlarm();
+        const unvisitedCount = state.totalNodes - state.history.length;
+        openModal(
+          'deadlock',
+          '✕',
+          'Çıkmaza Girdin! (Deadlock)',
+          `Atın bulunduğu kareden gidebileceği yasal komşu düğüm kalmadı.<br><br>
+           Kalan <strong>${unvisitedCount}</strong> adet düğüm izole kaldı ($deg_{eff} = 0$).<br><br>
+           ${state.difficulty !== 'hard' && state.undoLeft > 0 ? 'Hamleyi geri alıp tekrar deneyebilirsiniz.' : 'Yeniden başlatarak yeni bir strateji kurabilirsiniz.'}`
+        );
+      }
+    }
+
+    // --- RENDER MOTORU ---
+    function render() {
+      const validTargets = getValidTargets(state.currentId);
+      const criticalNodes = checkCriticalDegreeOneNodes();
+      const showNumbers = (state.difficulty === 'beginner');
+
+      let isCriticalAlarmActive = false;
+      let criticalWarningMessage = '';
+
+      if (state.difficulty === 'beginner') {
+        if (criticalNodes.length > 0) {
+          isCriticalAlarmActive = true;
+          const critCoords = criticalNodes.map(id => {
+            const c = graph.toCoords(id);
+            return `${String.fromCharCode(97 + c.c)}${state.rows - c.r}`;
+          }).join(', ');
+          criticalWarningMessage = `<strong>ÖLÜMCÜL UYARI:</strong> [${critCoords}] karesinin çıkış derecesi <strong>1'e</strong> düştü! Oraya hemen gidip tek çıkışından ayrılmazsanız çıkmaz sokağa gireceksiniz.`;
+        }
+      } else if (state.difficulty === 'medium') {
+        if (state.currentId !== null && validTargets.length === 1) {
+          isCriticalAlarmActive = true;
+          const escCoord = graph.toCoords(validTargets[0]);
+          const escName = `${String.fromCharCode(97 + escCoord.c)}${state.rows - escCoord.r}`;
+          criticalWarningMessage = `<strong>DİKKAT:</strong> Sadece tek bir kareden (<strong>${escName}</strong>) kaçış yolunuz kaldı!`;
+        } else if (criticalNodes.length > 0) {
+          isCriticalAlarmActive = true;
+          criticalWarningMessage = `<strong>DİKKAT:</strong> Tahtadaki bir karenin kaçış yolu 1'e düştü!`;
+        }
+      } else if (state.difficulty === 'hard') {
+        isCriticalAlarmActive = false;
+      }
+
+      for (let i = 0; i < graph.maxCells; i++) {
+        const sq = document.getElementById(`sq-${i}`);
+        if (!sq || sq.classList.contains('void-cell')) continue;
+        const coords = graph.toCoords(i);
+        const isWhite = graph.isWhiteSquare(coords.r, coords.c);
+
+        sq.className = `square ${isWhite ? 'light' : 'dark'}`;
+        const nodeEl = sq.querySelector('.graph-node');
+        if (nodeEl) nodeEl.remove();
+
+        const degSpan = sq.querySelector('.eff-degree-label');
+        const effDeg = state.effectiveDegrees[i];
+
+        if (state.visited[i]) {
+          sq.classList.add('visited');
+          sq.classList.add(isWhite ? 'is-white-subset' : 'is-black-subset');
+
+          if (i === state.currentId) {
+            sq.classList.add('current-node');
+            sq.innerHTML += `
+              <div class="graph-node">
+                <svg class="knight-svg" viewBox="0 0 24 24">
+                  <path d="M19 22H5V20H19V22M17.16 8.35C16.84 8.78 16.32 9.07 15.69 9.17L17 12H13V14H15V18H7V17C7 15.9 7.9 15 9 15H10V13H8.5C7.12 13 6 11.88 6 10.5C6 9.84 6.26 9.24 6.69 8.79L5.5 4H8.5L9.5 6.5C10.5 5.5 12 5 13.5 5C14.7 5 15.82 5.37 16.74 6L18.5 4.5L19.5 5.5L17.16 8.35Z"/>
+                </svg>
+              </div>`;
+          } else {
+            sq.innerHTML += `<div class="graph-node">${state.visitOrder[i]}</div>`;
+          }
+          if (degSpan) degSpan.style.display = 'none';
+        } else {
+          if (degSpan) {
+            if (showNumbers) {
+              degSpan.style.display = 'block';
+              degSpan.textContent = effDeg;
+            } else {
+              degSpan.style.display = 'none';
+            }
+          }
+
+          if (state.difficulty !== 'hard' && criticalNodes.includes(i)) {
+            sq.classList.add('critical-dead-end');
+          } else if (state.difficulty !== 'hard' && effDeg === 0 && state.history.length > 0) {
+            sq.classList.add('isolated-dead');
+          }
+
+          if (validTargets.includes(i) && !state.isGameOver && !state.isVictory) {
+            sq.classList.add('valid-target');
+          }
+
+          if (state.activeOracleHighlightId === i) {
+            sq.classList.add('oracle-best-highlight');
+          }
+        }
+      }
+
+      renderSvgEdges();
+      updateAnalyticsUI(validTargets, criticalNodes, isCriticalAlarmActive, criticalWarningMessage);
+      updateUndoButtonUI();
+
+      btnReset.disabled = state.history.length === 0 && !state.autoSolving;
+    }
+
+    function renderSvgEdges() {
+      if (!state.showEdges || state.history.length < 2) {
+        svgTrailPath.setAttribute('d', '');
+        svgNodesLayer.innerHTML = '';
+        return;
+      }
+
+      let d = '';
+      let dotsSvg = '';
+
+      state.history.forEach((h, index) => {
+        const x = h.c * 100 + 50;
+        const y = h.r * 100 + 50;
+
+        if (index === 0) d += `M ${x} ${y} `;
+        else d += `L ${x} ${y} `;
+
+        if (index < state.history.length - 1) {
+          dotsSvg += `<circle cx="${x}" cy="${y}" r="4" class="edge-dot" />`;
+        } else {
+          dotsSvg += `<circle cx="${x}" cy="${y}" r="7" class="edge-head-pulse" />`;
+        }
+      });
+
+      svgTrailPath.setAttribute('d', d);
+      svgNodesLayer.innerHTML = dotsSvg;
+    }
+
+    function updateAnalyticsUI(validTargets, criticalNodes, isCriticalAlarmActive, criticalWarningMessage) {
+      const step = state.history.length;
+      statVisitedNodes.textContent = step;
+      statPathEdges.textContent = Math.max(0, step - 1);
+
+      if (state.difficulty === 'hard') {
+        statCriticalNodes.textContent = '-';
+        lblCriticalCard.textContent = 'Uyarı Sistemi';
+        footCriticalCard.textContent = 'Zor modda kapalı';
+      } else {
+        statCriticalNodes.textContent = criticalNodes.length;
+        lblCriticalCard.textContent = 'Kritik Düğüm';
+        footCriticalCard.textContent = 'deg = 1 alarmı';
+      }
+
+      const pct = ((step / state.totalNodes) * 100).toFixed(1);
+      txtHamiltonPct.textContent = `%${pct}`;
+      barHamiltonFill.style.width = `${pct}%`;
+
+      let whiteCount = 0;
+      let blackCount = 0;
+      state.history.forEach(h => {
+        if (h.isWhite) whiteCount++;
+        else blackCount++;
+      });
+      cntWhiteVisited.textContent = whiteCount;
+      cntBlackVisited.textContent = blackCount;
+
+      if (step === 0) {
+        lblGamePhase.textContent = 'Başlangıç Bekleniyor';
+        badgeBipartite.className = 'bipartite-badge';
+        badgeBipartite.innerHTML = 'Bipartite: <span>Seçim Bekleniyor</span>';
+        statCurrentDeg.textContent = '-';
+      } else {
+        const last = state.history[step - 1];
+        const lastCoords = graph.toCoords(last.id);
+        const colLetter = String.fromCharCode(97 + lastCoords.c);
+        const rowNum = state.rows - lastCoords.r;
+        const notation = `${colLetter}${rowNum}`;
+
+        lblGamePhase.textContent = `${notation} (Adım ${step})`;
+        statCurrentDeg.textContent = validTargets.length;
+
+        if (last.isWhite) {
+          badgeBipartite.className = 'bipartite-badge bipartite-white';
+          badgeBipartite.innerHTML = `Mevcut: <strong>Beyaz (V_W)</strong> → Sonraki: <strong>Siyah (V_B)</strong>`;
+        } else {
+          badgeBipartite.className = 'bipartite-badge bipartite-black';
+          badgeBipartite.innerHTML = `Mevcut: <strong>Siyah (V_B)</strong> → Sonraki: <strong>Beyaz (V_W)</strong>`;
+        }
+      }
+
+      if (isCriticalAlarmActive && !state.isGameOver && !state.isVictory) {
+        criticalAlertBanner.classList.add('active');
+        criticalAlertMsg.innerHTML = criticalWarningMessage;
+        sound.playCriticalAlarm();
+      } else {
+        criticalAlertBanner.classList.remove('active');
+      }
+    }
+
+    // --- OTOMATİK ÇÖZÜCÜ (WARNSDORFF HEURISTIC AUTO-SOLVE) ---
+    function startAutoSolver() {
+      if (state.history.length === 0) {
+        const firstAllowed = Array.from(graph.allowedCells)[0] ?? 0;
+        executeMove(firstAllowed);
+      }
+      state.autoSolving = true;
+      btnAutoSolver.classList.remove('btn-indigo');
+      btnAutoSolver.classList.add('btn-amber');
+      txtAutoSolver.textContent = 'Durdur';
+      stepAutoSolver();
+    }
+
+    function stopAutoSolver() {
+      state.autoSolving = false;
+      if (state.autoSolveTimer) {
+        clearTimeout(state.autoSolveTimer);
+        state.autoSolveTimer = null;
+      }
+      btnAutoSolver.classList.remove('btn-amber');
+      btnAutoSolver.classList.add('btn-indigo');
+      txtAutoSolver.textContent = 'Otomatik Çöz (Warnsdorff)';
+      render();
+    }
+
+    function stepAutoSolver() {
+      if (!state.autoSolving) return;
+      if (state.isGameOver || state.isVictory || state.history.length >= state.totalNodes) {
+        stopAutoSolver();
+        return;
+      }
+
+      const validTargets = getValidTargets(state.currentId);
+      if (validTargets.length === 0) {
+        stopAutoSolver();
+        return;
+      }
+
+      const best = getWarnsdorffChoice(validTargets);
+      if (best !== null) {
+        executeMove(best);
+      }
+
+      state.autoSolveTimer = setTimeout(stepAutoSolver, state.autoSolveSpeed);
+    }
+
+    // --- MODAL YÖNETİMİ ---
+    function openModal(type, icon, title, htmlContent) {
+      modalIconBox.className = `modal-badge-icon ${type}`;
+      modalIconBox.textContent = icon;
+      modalHeadline.textContent = title;
+      modalContent.innerHTML = htmlContent;
+
+      if (state.difficulty === 'hard' || state.undoLeft <= 0) {
+        modalBtnUndo.style.display = 'none';
+      } else {
+        modalBtnUndo.style.display = 'inline-flex';
+      }
+
+      setTimeout(() => gameModal.classList.add('active'), 350);
+    }
+
+    function closeModal() {
+      gameModal.classList.remove('active');
+    }
+
+    // --- GİRİŞ EKRANI (LAUNCHER) ETKİLEŞİMİ ---
+    btnStartGame.addEventListener('click', () => {
+      launcherOverlay.classList.add('hidden');
+      reconfigureBoard();
+    });
+
+    btnOpenLauncher.addEventListener('click', () => {
+      launcherOverlay.classList.remove('hidden');
+    });
+
+    // --- BUTON VE ETKİLEŞİM DİNLEYİCİLERİ ---
+    btnToggleEdges.addEventListener('click', () => {
+      state.showEdges = !state.showEdges;
+      btnToggleEdges.textContent = `Ayrıtlar: ${state.showEdges ? 'AÇIK' : 'KAPALI'}`;
+      renderSvgEdges();
+    });
+
+    btnSoundToggle.addEventListener('click', () => {
+      sound.enabled = !sound.enabled;
+      sndIcon.textContent = sound.enabled ? '🔊' : '🔇';
+    });
+
+    btnUndo.addEventListener('click', undoMove);
+    modalBtnUndo.addEventListener('click', undoMove);
+
+    btnReset.addEventListener('click', resetGame);
+    modalBtnRestart.addEventListener('click', resetGame);
+
+    btnAutoSolver.addEventListener('click', () => {
+      if (state.autoSolving) stopAutoSolver();
+      else startAutoSolver();
+    });
+
+    // --- TAHTA BÜYÜTME (EXPAND / THEATER) MANTIĞI ---
+    const btnExpandBoard = document.getElementById('btnExpandBoard');
+    const iconExpandSvg = document.getElementById('iconExpandSvg');
+    const txtExpandBtn = document.getElementById('txtExpandBtn');
+    const boardPod = document.querySelector('.board-pod');
+    let isBoardExpanded = false;
+
+    function toggleBoardExpand() {
+      isBoardExpanded = !isBoardExpanded;
+      boardPod.classList.toggle('expanded', isBoardExpanded);
+
+      if (isBoardExpanded) {
+        txtExpandBtn.textContent = 'Küçült';
+        iconExpandSvg.innerHTML = `<path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>`;
+        btnExpandBoard.style.background = 'rgba(99, 102, 241, 0.35)';
+        btnExpandBoard.style.borderColor = 'var(--accent-indigo)';
+      } else {
+        txtExpandBtn.textContent = 'Tahtayı Büyüt';
+        iconExpandSvg.innerHTML = `<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>`;
+        btnExpandBoard.style.background = '';
+        btnExpandBoard.style.borderColor = '';
+      }
+    }
+
+    btnExpandBoard.addEventListener('click', toggleBoardExpand);
+
+    // ESC Tuşuna basılınca önce modalı, yoksa büyütülmüş tahtayı kapat
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (gameModal.classList.contains('active')) {
+          closeModal();
+        } else if (isBoardExpanded) {
+          toggleBoardExpand();
+        }
+      }
+    });
+
+    // Teori Sekmeleri
+    const academicContentData = {
+      geo2graph: `
+        <h4>1. Görsel Soyutlama (Geometri → Çizge)</h4>
+        <p>Problem <code>G=(V, E)</code> uzayında modellenir. Tahta boyutuna göre düğüm sayısı <code>|V| = M × N</code>'dir. Hedef, tüm düğümleri kapsayan bir <strong>Hamilton Yolu</strong> oluşturmaktır.</p>
+      `,
+      bipartite: `
+        <h4>2. Bipartite (İki Parçalı) Çizge Kuralı</h4>
+        <p>At her zıplamasında rengini değiştirir: <code>V_W → V_B</code>. Eğer tahta tek boyutluysa (örn: 5×5), siyah ve beyaz kare sayıları eşit olamaz; bu da kapalı turu matematiksel olarak imkansız kılar!</p>
+      `,
+      effective: `
+        <h4>3. Efektif Düğüm Dereceleri & Uyarı</h4>
+        <p>Bir kareye basıldığında komşuların efektif çıkış sayısı azalır. Derecesi 1'e düşen düğümler erken uyarılmazsa çıkmaz (deadlock) kaçınılmazdır.</p>
+      `,
+      schwenk: `
+        <h4>4. Schwenk Teoremi (Allen J. Schwenk - 1991)</h4>
+        <p>Hangi M×N tahtalarda Kapalı Hamilton Döngüsü olduğu tam olarak ispatlanmıştır. Hem M hem N tek olduğunda (örn: 5×5) kapalı tur OLA-MAZ; sadece açık yol olabilir!</p>
+      `
+    };
+
+    document.querySelectorAll('.tab-trigger').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        document.querySelectorAll('.tab-trigger').forEach(t => t.classList.remove('active'));
+        e.target.classList.add('active');
+        const key = e.target.dataset.tab;
+        academicPanel.innerHTML = academicContentData[key] || '';
+      });
+    });
+
+    // Başlangıç Yüklemesi
+    reconfigureBoard();
+    academicPanel.innerHTML = academicContentData['geo2graph'];
+  </script>
+</body>
+</html>
